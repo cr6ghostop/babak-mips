@@ -1,0 +1,66 @@
+asm.pl 05-apr-2005
+*********************************************
+* STAGE 1: translate text to opcodes
+
+Line   Offset Command
+000001 000000 begin:
+   LABEL: symbol=begin target=0
+000002 000000 addi $0,$1,11
+   I-cmd: op=8 rs=0 rt=1 im=11
+   i = 2001000b  offset=0
+000003 000001 addi $0,$2,11
+   I-cmd: op=8 rs=0 rt=2 im=11
+   i = 2002000b  offset=1
+000004 000002 beq  $2,$1,endline
+   I-cmd: op=4 rs=2 rt=1 im=0 (label=endline)
+   i = 10410000  offset=2
+000005 000003 addi $0,$3,3
+   I-cmd: op=8 rs=0 rt=3 im=3
+   i = 20030003  offset=3
+000006 000004 addi $0,$4,4
+   I-cmd: op=8 rs=0 rt=4 im=4
+   i = 20040004  offset=4
+000007 000005 addi $0,$5,5
+   I-cmd: op=8 rs=0 rt=5 im=5
+   i = 20050005  offset=5
+000008 000006 addi $0,$6,6
+   I-cmd: op=8 rs=0 rt=6 im=6
+   i = 20060006  offset=6
+000009 000007 endline: 
+   LABEL: symbol=endline target=7
+000010 000007 addi $0,$10,10
+   I-cmd: op=8 rs=0 rt=10 im=10
+   i = 200a000a  offset=7
+000011 000008 addi $0,$11,11
+   I-cmd: op=8 rs=0 rt=11 im=11
+   i = 200b000b  offset=8
+000012 000009 end:
+   LABEL: symbol=end target=9
+
+*********************************************
+* STAGE 2: assign numeric target addresses to labels
+
+LABELS, with offsets
+ endline: 7
+ begin: 0
+ end: 9
+
+*** JUMP/BRANCH LABEL REPORT
+1: jump via endline from offsets ( 2) will land @ offset 7
+
+*** DATA LABEL REPORT
+ (none)
+
+*********************************************
+* STAGE 3: output instructions
+
+Offset Instr    Command
+000000 2001000b begin: addi $0,$1,11
+000001 2002000b addi $0,$2,11
+000002 10410007 beq  $2,$1,endline
+000003 20030003 addi $0,$3,3
+000004 20040004 addi $0,$4,4
+000005 20050005 addi $0,$5,5
+000006 20060006 addi $0,$6,6
+000007 200a000a endline:  addi $0,$10,10
+000008 200b000b addi $0,$11,11

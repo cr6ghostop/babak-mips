@@ -1,0 +1,90 @@
+##################################################################################
+# mk.mips
+#
+# Description: Make file for mips compilation. It also generates FLASH
+# images for STI flash memories. 
+#
+# Author: Babak Azimi
+# Date: 4/11/2007
+##################################################################################
+
+WORK_DIR      := $(PROJ_DIR)/dv/fw/mips
+MISC_DIR      := $(WORK_DIR)/misc
+MCPP          := $(MIPS_TOOLS)/mips-cpp
+MCC           := $(MIPS_TOOLS)/mips-gcc 
+MLD           := $(MIPS_TOOLS)/mips-ld
+MOBJCOPY      := $(MIPS_TOOLS)/mips-objcopy
+MOBJDUMP      := $(MIPS_TOOLS)/mips-objdump
+MADDR2LINE    := $(MIPS_TOOLS)/mips-addr2line
+
+mwarnings     := -Wall  -Wundef -Wpointer-arith -Wstrict-prototypes -Wnested-externs 
+moptims       := -Os -fomit-frame-pointer -finline-functions -funit-at-a-time  -fno-reorder-functions
+
+MIPS_FLAGS    := -EL -march=r3900 -mno-branch-likely
+MIPS_FLAGS    +=  -g
+MIPS_FLAGS    += -ffreestanding
+
+MIPS_CFLAGS   := $(MIPS_FLAGS) $(mwarnings) $(moptims)
+
+MIPS_CPPFLAGS := -I.
+
+MC_BUILD_TIME      := $(shell date -u +"%s")
+########################################################################################
+# The Siena MC is a slightly incomplete implementation of MIPS-I with no
+# multiplier, so after linking the image, we need to check
+# if the disassembly shows any multiply instructions.
+# Code output looks like '<hex address>: <hex instruction> <mnemonic>' and we
+# check mnemonic against a list which is currently just the mfhi/mflo instructions
+# used to retire multiplies
+#########################################################################################
+
+# What follows INSTR_RE is the mnemonic 
+INSTR_RE :=  [0-9a-f]*:[[:space:]]*[0-9a-f]*[[:space:]]*
+# Add to this list as required
+BAD_INSTR_LIST := mult multu \
+                  mflo mtlo mfhi mthi \
+                  lwl lwr swl swr \
+                  lwc1 swc1 \
+                  mfc1 mtc1 \
+                  add\.s sub\.s mul\.s div\.s \
+                  add\.d sub\.d mul\.d div\.d
+# Replace spaces by vertical bars to form a regexp.
+nullstring:=
+BAD_INSTRS:=($(subst ${nullstring} ${nullstring},|,$(strip ${BAD_INSTR_LIST})))
+
+define SienaCatchInvalidInstrs
+mults=`$(MOBJDUMP) -d $@.tmp | grep -E "$(INSTR_RE)$(BAD_INSTRS)"`;\
+	[ -z "$$mults" ] || (echo "FATAL: found unsupported instruction(s) - "; \
+	OLD_IFS=$$IFS; IFS=$$'\n';\
+	for m in $$mults; do \
+		echo $$m; \
+		$(MADDR2LINE) -e $@.tmp `echo $$m | sed -e 's/:.*//'`; \
+	done; \
+	IFS=$$OLD_IFS; \
+	rm -f $@; exit 1)
+endef
+###########################################################################################
+default: $(TEST_NAME).mips $(TEST_NAME).elf $(TEST_NAME).text $(TEST_NAME).text.hex \
+                $(TEST_NAME).data $(TEST_NAME).data.hex
+
+$(TEST_NAME).mips: $(TEST_NAME).c
+	$(MCC) $(MIPS_CFLAGS) $(MIPS_CPPFLAGS) -c -o $(TEST_NAME).mips $(TEST_NAME).c
+
+$(TEST_NAME).elf: $(TEST_NAME).mips 
+	$(MLD) -EL --defsym MC_BUILD_TIME=$(MC_BUILD_TIME) --defsym MC_BUILD_ID=0 --script=runtime.lds -o $@.tmp $(MISC_DIR)/entry.mips $(TEST_NAME).mips
+	@$(SienaCatchInvalidInstrs)
+	@mv $@.tmp $@
+
+$(TEST_NAME).text: $(TEST_NAME).elf
+	$(MOBJCOPY) --only-section .text --only-section .imem_data -O binary $< $@
+
+$(TEST_NAME).text.hex: $(TEST_NAME).text
+	od -t x4 -v -w4 $< |  head -n -1 | cut -f 2 -d ' ' > $@
+
+$(TEST_NAME).data.hex: $(TEST_NAME).data
+	od -t x4 -v -w4 $< |  head -n -1 | cut -f 2 -d ' ' > $@
+
+$(TEST_NAME).data: $(TEST_NAME).elf
+	$(MOBJCOPY) --only-section .data -O binary $< $@
+clean:
+	@rm *.elf *.text *.data *.hex *.mips *.mbist* *.flash*
