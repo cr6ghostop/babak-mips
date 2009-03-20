@@ -1,0 +1,3 @@
+mips-as -EL -march=r3900 -mips1 temp.asm
+mips-objcopy a.out a.text
+od -t x4 -v -w4 a.text | head -n -1 | cut -f 2 -d ' ' > a.hex

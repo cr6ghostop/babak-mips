@@ -1,0 +1,9 @@
+../RTL/alu.v
+../RTL/decode_stage.v
+../RTL/fetch_stage.v
+../RTL/execute_stage.v
+../RTL/memory_stage.v
+../RTL/wback_stage.v
+../RTL/mips_top.v
+../TESTBENCH/testbench.v
+../TESTBENCH/Memory.v
