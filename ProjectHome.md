@@ -1,0 +1,1 @@
+[R3000](https://code.google.com/p/babak-mips/source/detail?r=3000)/[R2000](https://code.google.com/p/babak-mips/source/detail?r=2000) compliant MIPS processor. Written in RTL format. It's systnesizable and functional. It has been verified with mips-gcc compiler using a simple quiksort app.
